@@ -15,6 +15,20 @@ var axisLabels = {
             label: "Household Income (Median)",
             value: "income"
         }
+    ],
+    y: [
+        {
+            label: "Lacks Healthcare (%)",
+            value: "healthcare"
+        },
+        {
+            label: "Obesity (%)",
+            value: "obesity"
+        },
+        {
+            label: "Smokes (%)",
+            value: "smokes"
+        }
     ]
 }
 
@@ -50,28 +64,50 @@ function generateScale(stateData, chosenAxis, axis) {
         .range([axis == "y" ? chartHeight : 0, axis == "y" ? 0 : chartWidth]);
 }
 
-function renderCircles(dataPoint, newXScale, chosenXAxis) {
+function renderCircles(dataPoint, newXScale, newYScale, chosenXAxis, chosenYAxis) {
 
-    dataPoint.transition()
+    dataPoint.selectAll("circle").transition()
       .duration(1000)
-      .attr("cx", d => newXScale(d[chosenXAxis]));
+      .attr("cx", d => newXScale(d[chosenXAxis]))
+      .attr("cy", d => newYScale(d[chosenYAxis]));
+
+    dataPoint.selectAll("text").transition()
+      .duration(1000)
+      .attr("dx", d => newXScale(d[chosenXAxis]))
+      .attr("dy", d => newYScale(d[chosenYAxis]) + 5)
   
     return dataPoint;
 }
+
+function renderAxes(newScale, axis) {
+
+    var chartAxis = axis.attr("axis") == "x" ? d3.axisBottom(newScale) : d3.axisLeft(newScale)
+  
+    axis.transition()
+      .duration(1000)
+      .call(chartAxis);
+  
+    return axis;
+  }
 
 function updateToolTip(chosenXAxis, chosenYAxis, dataPoints) {
 
     var xLabel = "";
     var yLabel = "";
     var isXPercentage = false;
-    var isYPercentage = false;
+    var isYPercentage = true;
 
     switch (chosenXAxis) {
         case "poverty":
-            xLabel = "In Poverty";
+            xLabel = "In Poverty:";
             isXPercentage = true;
             break;
-    
+        case "age":
+            xLabel = "Age (Median):";
+            break;
+        case "income":
+            xLabel = "Household Income (Median):";
+            break;    
         default:
             break;
     }
@@ -79,16 +115,19 @@ function updateToolTip(chosenXAxis, chosenYAxis, dataPoints) {
     switch (chosenYAxis) {
         case "healthcare":
             yLabel = "Lacks Healthcare:";
-            isYPercentage = true;
             break;
-    
+        case "obesity":
+            yLabel = "Obesity:";
+            break;
+        case "smokes":
+            yLabel = "Smokes:";
+            break;
         default:
             break;
     }
   
     var toolTip = d3.tip()
       .attr("class", "d3-tip")
-    //   .offset([80, -60])
       .html(d => `${d.state}<br>${xLabel} ${d[chosenXAxis]}${isXPercentage ? "%" : ""}<br>${yLabel} ${d[chosenYAxis]}${isYPercentage ? "%" : ""}`);
   
     dataPoints.call(toolTip);
@@ -104,11 +143,10 @@ function updateToolTip(chosenXAxis, chosenYAxis, dataPoints) {
     return dataPoints;
 }
 
-
 function renderPlot() {
 
-    var chosenXAxis = 'poverty';
-    var chosenYAxis = 'healthcare';
+    var chosenXAxis = axisLabels.x[0].value;
+    var chosenYAxis = axisLabels.y[0].value;
     
     d3.csv("public/data/data.csv").then(function(stateData, err) {
         if (err) throw err;
@@ -129,11 +167,13 @@ function renderPlot() {
         var bottomAxis = d3.axisBottom(xAxisScale);
         var leftAxis = d3.axisLeft(yAxisScale);
     
-        chartGroup.append("g")
+        var bottomAxisGroup = chartGroup.append("g")
             .attr("transform", `translate(0, ${chartHeight})`)
+            .attr("axis", "x")
             .call(bottomAxis);
     
-        chartGroup.append("g")
+        var leftAxisGroup = chartGroup.append("g")
+            .attr("axis", "y")
             .call(leftAxis);
 
         var dataGroup = chartGroup.append("g")
@@ -143,7 +183,7 @@ function renderPlot() {
             .enter()
             .append("g");
             
-        var circle = dataPoints.append("circle")
+        dataPoints.append("circle")
             .attr("r", 15)
             .attr("cx", d => xAxisScale(d[chosenXAxis]))
             .attr("cy", d => yAxisScale(d[chosenYAxis]))
@@ -173,90 +213,77 @@ function renderPlot() {
             .classed(i == 0 ? "active" : "inactive", true)
             .text(d.label);
         });
+
+        axisLabels.y.forEach((d, i) => {
+            yLabelsGroup.append("text")
+            .attr("y", 0 - margin.left + (i*20))
+            .attr("x", 0 - (chartHeight / 2))
+            .attr("dy", "1em")
+            .attr("value", d.value)
+            .classed(i == 0 ? "active" : "inactive", true)
+            .text(d.label);
+        });
         
-        // var povertyLabel = xLabelsGroup.append("text")
-        //     .attr("x", 0)
-        //     .attr("y", 20)
-        //     .attr("value", "poverty")
-        //     .classed("active", true)
-        //     .text("In Poverty (%)");
-
-        // var ageLabel = xLabelsGroup.append("text")
-        //     .attr("x", 0)
-        //     .attr("y", 40)
-        //     .attr("value", "age")
-        //     .classed("inactive", true)
-        //     .text("Age (Median)");
-
-        // var incomeLabel = xLabelsGroup.append("text")
-        //     .attr("x", 0)
-        //     .attr("y", 60)
-        //     .attr("value", "income")
-        //     .classed("inactive", true)
-        //     .text("Household Income (Median)");
-
-        var healthcareLabel = yLabelsGroup.append("text")
-            .attr("y", 0 - margin.left)
-            .attr("x", 0 - (chartHeight / 2))
-            .attr("dy", "1em")
-            .attr("value", "healthcare")
-            .classed("active", true)
-            .text("Lacks Healthcare (%)");
-
-        var obesityLabel = yLabelsGroup.append("text")
-            .attr("y", 0 - margin.left + 20)
-            .attr("x", 0 - (chartHeight / 2))
-            .attr("dy", "1em")
-            .attr("value", "obesity")
-            .classed("inactive", true)
-            .text("Obesity (%)");
-
-        var smokesLabel = yLabelsGroup.append("text")
-            .attr("y", 0 - margin.left + 40)
-            .attr("x", 0 - (chartHeight / 2))
-            .attr("dy", "1em")
-            .attr("value", "smokes")
-            .classed("inactive", true)
-            .text("Smokes (%)");
 
         xLabelsGroup.selectAll("text")
             .on("click", function() {
               // get value of selection
               var value = d3.select(this).attr("value");
+
               if (value !== chosenXAxis) {
-        
-                // replaces chosenXAxis with value
                 chosenXAxis = value;
         
                 xAxisScale = generateScale(stateData, chosenXAxis, "x");
         
-                bottomAxis = renderAxes(xAxisScale, bottomAxis);
+                bottomAxisGroup = renderAxes(xAxisScale, bottomAxisGroup);
         
                 // updates circles with new x values
-                dataPoints = renderCircles(dataPoints, xLinearScale, chosenXAxis);
+                dataPoints = renderCircles(dataPoints, xAxisScale, yAxisScale, chosenXAxis, chosenYAxis);
         
                 // updates tooltips with new info
-                dataPoints = updateToolTip(chosenXAxis, dataPoints);
-        
-                // changes classes to change bold text
-                if (chosenXAxis === "num_albums") {
-                  albumsLabel
-                    .classed("active", true)
-                    .classed("inactive", false);
-                  hairLengthLabel
+                dataPoints = updateToolTip(chosenXAxis, chosenYAxis, dataPoints);
+                
+                xLabelsGroup.selectAll("text")
                     .classed("active", false)
                     .classed("inactive", true);
-                }
-                else {
-                  albumsLabel
-                    .classed("active", false)
-                    .classed("inactive", true);
-                  hairLengthLabel
+
+                d3.select(this)
                     .classed("active", true)
                     .classed("inactive", false);
-                }
+
+                
               }
             });
+
+        yLabelsGroup.selectAll("text")
+            .on("click", function() {
+            // get value of selection
+            var value = d3.select(this).attr("value");
+
+            if (value !== chosenYAxis) {
+                chosenYAxis = value;
+    
+            yAxisScale = generateScale(stateData, chosenYAxis, "y");
+    
+            leftAxisGroup = renderAxes(yAxisScale, leftAxisGroup);
+    
+            // updates circles with new x values
+            dataPoints = renderCircles(dataPoints, xAxisScale, yAxisScale, chosenXAxis, chosenYAxis);
+    
+            // updates tooltips with new info
+            dataPoints = updateToolTip(chosenXAxis, chosenYAxis, dataPoints);
+            
+            yLabelsGroup.selectAll("text")
+                .classed("active", false)
+                .classed("inactive", true);
+
+            d3.select(this)
+                .classed("active", true)
+                .classed("inactive", false);
+
+            
+            }
+        });
 
 
         // <image href="/public/images/flags/california-flag-round-icon-256.png" height="30" width="30" x="864.0890243902438" y="112.7815270935961"></image>
