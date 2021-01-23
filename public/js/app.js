@@ -99,14 +99,14 @@ function updateToolTip(chosenXAxis, chosenYAxis, dataPoints) {
 
     switch (chosenXAxis) {
         case "poverty":
-            xLabel = "In Poverty:";
+            xLabel = "In Poverty: ";
             isXPercentage = true;
             break;
         case "age":
-            xLabel = "Age (Median):";
+            xLabel = "Age (Median): ";
             break;
         case "income":
-            xLabel = "Household Income (Median):";
+            xLabel = "Household Income (Median): $";
             break;    
         default:
             break;
@@ -128,7 +128,7 @@ function updateToolTip(chosenXAxis, chosenYAxis, dataPoints) {
   
     var toolTip = d3.tip()
       .attr("class", "d3-tip")
-      .html(d => `${d.state}<br>${xLabel} ${d[chosenXAxis]}${isXPercentage ? "%" : ""}<br>${yLabel} ${d[chosenYAxis]}${isYPercentage ? "%" : ""}`);
+      .html(d => `${d.state}<br>${xLabel}${d[chosenXAxis]}${isXPercentage ? "%" : ""}<br>${yLabel} ${d[chosenYAxis]}${isYPercentage ? "%" : ""}`);
   
     dataPoints.call(toolTip);
   
@@ -185,17 +185,19 @@ function renderPlot() {
             
         dataPoints.append("circle")
             .attr("r", 15)
-            .attr("cx", d => xAxisScale(d[chosenXAxis]))
-            .attr("cy", d => yAxisScale(d[chosenYAxis]))
+            .attr("cx", 0)
+            .attr("cy", chartHeight)
             .classed("stateCircle", true);
          
         dataPoints.append("text")
             .text(d => d.abbr)
-            .attr("dx", d => xAxisScale(d[chosenXAxis]))
-            .attr("dy", d => yAxisScale(d[chosenYAxis]) + 5)
+            .attr("dx", 0)
+            .attr("dy", chartHeight)
             .classed("stateText", true);
 
-        var dataPoints = updateToolTip(chosenXAxis, chosenYAxis, dataPoints);
+        dataPoints = renderCircles(dataPoints, xAxisScale, yAxisScale, chosenXAxis, chosenYAxis);
+
+        dataPoints = updateToolTip(chosenXAxis, chosenYAxis, dataPoints);
 
         var xLabelsGroup = chartGroup.append("g")
             .attr("id", "xLabelsGroup")
@@ -227,7 +229,6 @@ function renderPlot() {
 
         xLabelsGroup.selectAll("text")
             .on("click", function() {
-              // get value of selection
               var value = d3.select(this).attr("value");
 
               if (value !== chosenXAxis) {
@@ -237,10 +238,8 @@ function renderPlot() {
         
                 bottomAxisGroup = renderAxes(xAxisScale, bottomAxisGroup);
         
-                // updates circles with new x values
                 dataPoints = renderCircles(dataPoints, xAxisScale, yAxisScale, chosenXAxis, chosenYAxis);
         
-                // updates tooltips with new info
                 dataPoints = updateToolTip(chosenXAxis, chosenYAxis, dataPoints);
                 
                 xLabelsGroup.selectAll("text")
@@ -257,7 +256,6 @@ function renderPlot() {
 
         yLabelsGroup.selectAll("text")
             .on("click", function() {
-            // get value of selection
             var value = d3.select(this).attr("value");
 
             if (value !== chosenYAxis) {
@@ -267,10 +265,8 @@ function renderPlot() {
     
             leftAxisGroup = renderAxes(yAxisScale, leftAxisGroup);
     
-            // updates circles with new x values
             dataPoints = renderCircles(dataPoints, xAxisScale, yAxisScale, chosenXAxis, chosenYAxis);
     
-            // updates tooltips with new info
             dataPoints = updateToolTip(chosenXAxis, chosenYAxis, dataPoints);
             
             yLabelsGroup.selectAll("text")
