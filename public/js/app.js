@@ -236,7 +236,7 @@ function renderPlot() {
             .classed("stateText", true);
 
         dataPoints.append("image")
-            .attr("href", d => `/public/images/flags/${d.state.replace(" ", "-").toLowerCase()}-flag-round-icon-256.png`)
+            .attr("href", d => `public/images/flags/${d.state.replace(" ", "-").toLowerCase()}-flag-round-icon-256.png`)
             .attr("x", 0)
             .attr("y", chartHeight - 15)
             .attr("height", 30)
