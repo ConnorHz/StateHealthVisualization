@@ -1,5 +1,9 @@
-var svgHeight = window.innerHeight;
-var svgWidth = window.innerWidth;
+var svgHeight = 800;
+var svgWidth = 960;
+
+function numberWithCommas(x) {
+    return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}
 
 var axisLabels = {
     x: [
@@ -33,9 +37,9 @@ var axisLabels = {
 }
 
 var margin = {
-    top: 20,
+    top: 40,
     right: 40,
-    bottom: 80,
+    bottom: 90,
     left: 100
 };
 
@@ -61,22 +65,30 @@ function generateScale(stateData, chosenAxis, axis) {
 
     return d3.scaleLinear()
         .domain([min-buffer, max+buffer])
-        .range([axis == "y" ? chartHeight : 0, axis == "y" ? 0 : chartWidth]);
+        .range([axis == "x" ? 0 : chartHeight, axis == "x" ? chartWidth : 0]);
 }
 
-function renderCircles(dataPoint, newXScale, newYScale, chosenXAxis, chosenYAxis) {
+function renderDataPoints(newXScale, newYScale, chosenXAxis, chosenYAxis) {
 
-    dataPoint.selectAll("circle").transition()
+    var dataPoints = d3.selectAll(".dataPoint");
+
+    dataPoints.selectAll("circle").transition()
       .duration(1000)
       .attr("cx", d => newXScale(d[chosenXAxis]))
-      .attr("cy", d => newYScale(d[chosenYAxis]));
+      .attr("cy", d => newYScale(d[chosenYAxis]))
 
-    dataPoint.selectAll("text").transition()
+
+      dataPoints.selectAll("text").transition()
       .duration(1000)
       .attr("dx", d => newXScale(d[chosenXAxis]))
       .attr("dy", d => newYScale(d[chosenYAxis]) + 5)
+
+      dataPoints.selectAll("image").transition()
+      .duration(1000)
+      .attr("x", d => newXScale(d[chosenXAxis]) - 15)
+      .attr("y", d => newYScale(d[chosenYAxis]) - 15)
   
-    return dataPoint;
+    return dataPoints;
 }
 
 function renderAxes(newScale, axis) {
@@ -88,9 +100,36 @@ function renderAxes(newScale, axis) {
       .call(chartAxis);
   
     return axis;
-  }
+}
 
-function updateToolTip(chosenXAxis, chosenYAxis, dataPoints) {
+function toggleFlags() {
+    var checked = d3.selectAll("#flagToggle").property("checked");
+    var duration = 1000;
+
+    var dataPoints = d3.selectAll(".dataPoint");
+
+    dataPoints.selectAll(".stateCircle").transition()
+      .duration(duration)
+      .style("opacity", checked ? 0 : 1)
+
+    dataPoints.selectAll("text").transition()
+      .duration(duration)
+      .style("opacity", checked ? 0 : 1)
+
+    dataPoints.selectAll("image").transition()
+      .duration(duration)
+      .style("opacity", checked ? 1 : 0)
+
+    dataPoints.selectAll(".flagBorder").transition()
+      .duration(duration)
+      .style("opacity", checked ? 1 : 0)
+    
+}
+
+
+function updateToolTip(chosenXAxis, chosenYAxis) {
+
+    var dataPoints = d3.selectAll(".dataPoint");
 
     var xLabel = "";
     var yLabel = "";
@@ -103,10 +142,10 @@ function updateToolTip(chosenXAxis, chosenYAxis, dataPoints) {
             isXPercentage = true;
             break;
         case "age":
-            xLabel = "Age (Median): ";
+            xLabel = "Age: ";
             break;
         case "income":
-            xLabel = "Household Income (Median): $";
+            xLabel = "Income: $";
             break;    
         default:
             break;
@@ -128,7 +167,7 @@ function updateToolTip(chosenXAxis, chosenYAxis, dataPoints) {
   
     var toolTip = d3.tip()
       .attr("class", "d3-tip")
-      .html(d => `${d.state}<br>${xLabel}${d[chosenXAxis]}${isXPercentage ? "%" : ""}<br>${yLabel} ${d[chosenYAxis]}${isYPercentage ? "%" : ""}`);
+      .html(d => `${d.state}<br>${xLabel}${numberWithCommas(d[chosenXAxis])}${isXPercentage ? "%" : ""}<br>${yLabel} ${d[chosenYAxis]}${isYPercentage ? "%" : ""}`);
   
     dataPoints.call(toolTip);
   
@@ -181,7 +220,8 @@ function renderPlot() {
         var dataPoints = dataGroup.selectAll("g")
             .data(stateData)
             .enter()
-            .append("g");
+            .append("g")
+            .classed("dataPoint", true);
             
         dataPoints.append("circle")
             .attr("r", 15)
@@ -195,9 +235,24 @@ function renderPlot() {
             .attr("dy", chartHeight)
             .classed("stateText", true);
 
-        dataPoints = renderCircles(dataPoints, xAxisScale, yAxisScale, chosenXAxis, chosenYAxis);
+        dataPoints.append("image")
+            .attr("href", d => `/public/images/flags/${d.state.replace(" ", "-")}-flag-round-icon-256.png`)
+            .attr("x", 0)
+            .attr("y", chartHeight - 15)
+            .attr("height", 30)
+            .attr("width", 30)
+            .style("opacity", 0);
 
-        dataPoints = updateToolTip(chosenXAxis, chosenYAxis, dataPoints);
+        dataPoints.append("circle")
+            .attr("r", 15)
+            .attr("cx", 0)
+            .attr("cy", chartHeight)
+            .classed("flagBorder", true)
+            .style("opacity", 0);
+
+        renderDataPoints(xAxisScale, yAxisScale, chosenXAxis, chosenYAxis);
+
+        updateToolTip(chosenXAxis, chosenYAxis, dataPoints);
 
         var xLabelsGroup = chartGroup.append("g")
             .attr("id", "xLabelsGroup")
@@ -212,7 +267,7 @@ function renderPlot() {
             .attr("x", 0)
             .attr("y", 20 + (i*20))
             .attr("value", d.value)
-            .classed(i == 0 ? "active" : "inactive", true)
+            .classed(i == 0 ? "active aText" : "inactive aText", true)
             .text(d.label);
         });
 
@@ -222,9 +277,14 @@ function renderPlot() {
             .attr("x", 0 - (chartHeight / 2))
             .attr("dy", "1em")
             .attr("value", d.value)
-            .classed(i == 0 ? "active" : "inactive", true)
+            .classed(i == 0 ? "active aText" : "inactive aText", true)
             .text(d.label);
         });
+
+        chartGroup.append("text")
+            .attr("transform", `translate(${chartWidth / 2}, 0)`)
+            .classed("aText active", true)
+            .text("Relationship Between State Census Data");
         
 
         xLabelsGroup.selectAll("text")
@@ -238,9 +298,9 @@ function renderPlot() {
         
                 bottomAxisGroup = renderAxes(xAxisScale, bottomAxisGroup);
         
-                dataPoints = renderCircles(dataPoints, xAxisScale, yAxisScale, chosenXAxis, chosenYAxis);
+                renderDataPoints(xAxisScale, yAxisScale, chosenXAxis, chosenYAxis);
         
-                dataPoints = updateToolTip(chosenXAxis, chosenYAxis, dataPoints);
+                updateToolTip(chosenXAxis, chosenYAxis);
                 
                 xLabelsGroup.selectAll("text")
                     .classed("active", false)
@@ -265,9 +325,9 @@ function renderPlot() {
     
             leftAxisGroup = renderAxes(yAxisScale, leftAxisGroup);
     
-            dataPoints = renderCircles(dataPoints, xAxisScale, yAxisScale, chosenXAxis, chosenYAxis);
-    
-            dataPoints = updateToolTip(chosenXAxis, chosenYAxis, dataPoints);
+            renderDataPoints(xAxisScale, yAxisScale, chosenXAxis, chosenYAxis);
+        
+            updateToolTip(chosenXAxis, chosenYAxis);
             
             yLabelsGroup.selectAll("text")
                 .classed("active", false)
@@ -280,12 +340,6 @@ function renderPlot() {
             
             }
         });
-
-
-        // <image href="/public/images/flags/california-flag-round-icon-256.png" height="30" width="30" x="864.0890243902438" y="112.7815270935961"></image>
-
-        // .attr("cx", d => xAxisScale(d[chosenXAxis]) - 15)
-        // .attr("cy", d => yAxisScale(d[chosenYAxis]) - 15)
     
     }).catch(function(error) {
         console.log(error);
@@ -295,5 +349,6 @@ function renderPlot() {
 
 renderPlot();
 
-d3.select(window).on("resize", renderPlot);
+
+
 

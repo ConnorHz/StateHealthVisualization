@@ -41,6 +41,12 @@
   margin: 0;
 }
 
+.flagBorder {
+  fill: none;
+  stroke: #000;
+  stroke-width: 1px;
+}
+
 .d3-tip {
   padding: 6px;
   font-size: 12px;
